@@ -1,0 +1,29 @@
+{
+  "format": "personal-expression-model-v1",
+  "schema": "personal-expression-six-ratios-v1",
+  "features": [
+    "mouthWidth",
+    "mouthOpen",
+    "cornerLift",
+    "leftEyeOpen",
+    "rightEyeOpen",
+    "browGap"
+  ],
+  "labels": [
+    "resting",
+    "smile",
+    "frown",
+    "wide_eyes"
+  ],
+  "source": "synthetic",
+  "gate": {
+    "enter": 0.7,
+    "exit": 0.45,
+    "holdMs": 300,
+    "smoothing": 0.25
+  },
+  "versions": {
+    "p5": "2.4.0",
+    "ml5": "1.4.0"
+  }
+}

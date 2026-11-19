@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Holding a Smile | Train a personal expression model</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Load dependencies in order: p5 first, the storage compatibility shim
+       before ml5, then configuration/classes, and finally p5's sketch entry. -->
+  <!-- Pin library versions so saved models and classroom instructions have a
+       predictable API; FaceMesh separately downloads its pretrained assets. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/p5@2.4.0/lib/p5.min.js"></script>
+  <script defer src="shared/preview-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/ml5@1.4.0/dist/ml5.min.js"></script>
+  <script defer src="config.js"></script>
+  <script defer src="shared/face-features.js"></script>
+  <script defer src="shared/face-input.js"></script>
+  <script defer src="shared/training-session.js"></script>
+  <script defer src="shared/expression-model.js"></script>
+  <script defer src="shared/smile-gate.js"></script>
+  <script defer src="shared/workshop-app.js"></script>
+  <script defer src="sketch.js"></script>
+</head>
+<body>
+  <!-- Workshop identity and the library versions used by this page. -->
+  <header class="page-header">
+    <div><p class="eyebrow">GBDA 414 / Enacting Intelligence</p><h1>Holding a Smile</h1>
+      <p>Part one · Train a personal expression model</p></div>
+    <span class="version">p5.js 2.4.0 / ml5.js 1.4.0</span>
+  </header>
+  <main>
+    <!-- These buttons select views in one session; they do not reload the page. -->
+    <nav class="examples" aria-label="Workshop examples">
+      <button data-step="1" aria-current="step"><span>01</span> Inspect a face</button>
+      <button data-step="2"><span>02</span> Collect &amp; train</button>
+      <button data-step="3"><span>03</span> Reuse the model</button>
+    </nav>
+    <!-- JavaScript replaces this copy when the selected example changes. -->
+    <section class="intro"><h2 id="step-title">Coordinates are not feelings.</h2>
+      <p id="step-description">Inspect the six measurements we designed from FaceMesh landmarks. Nothing is being recorded yet.</p></section>
+    <div class="workspace">
+      <!-- Camera/synthetic input preview and the shared six-feature display. -->
+      <section class="observation" aria-label="Input and facial measurements">
+        <div class="source-line"><strong id="source-badge">Camera / not started</strong><span id="tracking">No input</span></div>
+        <div id="canvas-holder" aria-label="Camera preview or clearly labelled synthetic input"></div>
+        <div class="camera-controls">
+          <button id="camera-start" class="primary">Start webcam</button><button id="camera-stop" disabled>Stop webcam</button>
+          <label><input type="checkbox" id="landmarks" checked> Show face mesh</label>
+        </div>
+        <p class="small">Choose to use your own face, or use the synthetic route. Webcam frames stay in this page; no video or photographs are saved.</p>
+        <!-- Switching source is locked after data collection so a dataset can
+             never silently combine webcam measurements with authored numbers. -->
+        <div class="mode-controls"><label for="input-mode">Input source</label>
+          <select id="input-mode"><option value="camera">My webcam</option><option value="synthetic">Synthetic feature simulator / not a face</option></select></div>
+        <div id="synthetic-controls" hidden>
+          <p class="notice">SYNTHETIC INPUT. These authored numbers are not extracted from a face. Training is real, but this route does not test facial recognition.</p>
+          <label for="synthetic-profile">Feature pattern</label><select id="synthetic-profile"></select>
+          <label for="synthetic-variation">Variation <output id="variation-value">0.35</output></label>
+          <input type="range" id="synthetic-variation" min="0" max="1" step="0.05" value="0.35">
+          <button id="synthetic-missing">Simulate missing input</button>
+        </div>
+        <details class="measurements" open><summary>Our six features <span>Ratios, not emotion readings</span></summary>
+          <table><thead><tr><th>Feature</th><th>Value</th></tr></thead><tbody id="features"></tbody></table>
+        </details>
+      </section>
+      <!-- Each data-view panel is populated and enabled by WorkshopApp. -->
+      <section class="working-panel" aria-label="Collection, training and model controls">
+        <div id="status" role="status" aria-live="polite">Ready. Choose an input source to begin.</div>
+        <div data-view="1">
+          <p class="eyebrow">Example 01</p><h2>Choose what to measure</h2>
+          <p>FaceMesh estimates landmarks. <code>FaceFeatures.extract()</code> turns selected points into six ratios. We chose these features; the model did not name them.</p>
+          <ol class="guide-list"><li>Start the webcam, or select synthetic input.</li><li>Move closer, farther away, then slightly sideways.</li><li>Compare the preview with the ratios below it.</li><li>Perform a few comfortable expressions. Which ratios change?</li></ol>
+          <p class="notice">No examples are saved in this view. Landmark tracking is not custom training.</p>
+          <button data-step="2" class="primary">Continue to collection</button>
+        </div>
+        <!-- Example 02 records complete bursts, trains the custom classifier,
+             and supports explicitly requested dataset import/export. -->
+        <div data-view="2" hidden>
+          <p class="eyebrow">Example 02</p><h2>Make a labelled dataset</h2>
+          <label for="label">Expression label</label><select id="label"></select>
+          <p id="expression-prompt"></p>
+          <div class="button-row"><button id="record" class="primary">Record one burst</button><button id="cancel-burst" disabled>Cancel burst</button></div>
+          <p class="small">2-second countdown → 24 fresh examples at up to 8 per second. Try three varied bursts per label; one complete burst per label enables training.</p>
+          <div id="burst-progress" aria-live="polite"></div>
+          <table><thead><tr><th>Label</th><th>Bursts</th><th>Examples</th></tr></thead><tbody id="counts"></tbody></table>
+          <div class="button-row"><button id="undo">Undo last burst</button><button id="dataset-save">Save dataset</button>
+            <label class="file-button">Load dataset<input type="file" id="dataset-load" accept=".json"></label></div>
+          <div class="train-block"><h3>Train a new model</h3>
+            <p class="small">Training replaces the previous classifier. The pretrained FaceMesh model stays unchanged.</p>
+            <button id="train" class="primary" disabled>Train custom model</button>
+            <progress id="training-progress" max="60" value="0" aria-label="Training epochs"></progress>
+            <p id="training-text" class="small">No custom model trained.</p>
+          </div>
+          <details><summary>Camera-free practice dataset</summary><p class="small">Load a supplied synthetic dataset to practise real training, saving, and reloading. It cannot validate a model on a real face.</p>
+            <button id="load-practice">Load synthetic practice dataset</button></details>
+          <button data-step="3" class="continue">Continue to testing &amp; reuse</button>
+        </div>
+        <!-- Example 03 separates fresh inference from the authored design test. -->
+        <div data-view="3" hidden>
+          <p class="eyebrow">Example 03</p><h2>Test a new performance</h2>
+          <p>Use fresh expressions that were not recorded for training. Predictions never add examples automatically.</p>
+          <p id="model-provenance" class="notice">Train a model in Example 02, or load a complete saved model set.</p>
+          <div id="scores" aria-label="Raw class scores"></div>
+          <div class="gate-output"><span>Designed response</span><strong id="gate-state">Waiting for a model</strong>
+            <p id="smile-score" class="small">No prediction yet.</p></div>
+          <label for="hold-ms">State-change hold time <output id="hold-value">300 ms</output></label>
+          <input id="hold-ms" type="range" min="0" max="1500" value="300" step="100">
+          <p class="small">This changes the response, not the trained model. Entry: 0.70 / exit: 0.45. An uncertain state is not proof that the input is unfamiliar.</p>
+          <div class="button-row"><button id="model-save" disabled>Save model set (4 files)</button>
+            <label class="file-button">Load model set<input id="model-load" type="file" accept=".json,.bin" multiple></label></div>
+          <p class="small">Keep model.json, model_meta.json, model.weights.bin, and session.json together. Allow multiple downloads if asked. A dataset export is a different file.</p>
+          <details><summary>Design test / no inference</summary>
+            <p class="small">Supply authored scores to test only the response layer. These buttons do not train or evaluate a model.</p>
+            <div class="button-row"><button data-design="smile">High smile</button><button data-design="resting">Low smile</button><button data-design="ambiguous">Between thresholds</button>
+              <button id="design-live">Return to inference</button></div></details>
+        </div>
+      </section>
+    </div>
+    <!-- Reset is confirmed because it clears in-memory examples/model state. -->
+    <section class="session-end"><div><h2>Leave no visitor behind</h2><p>Reset before a different visitor starts. Downloads remain on your computer until you delete them.</p></div>
+      <button id="reset">Reset session</button>
+      <div id="reset-confirm" hidden><p>Clear this page’s examples, model, and results, and stop the camera?</p>
+        <button id="reset-yes">Yes, reset</button><button id="reset-no">Keep session</button></div>
+    </section>
+    <footer><p>Performed expressions are labels, not access to feelings. This workshop stops before scoring or adaptive image selection.</p>
+      <p><a href="README.md" target="_blank" rel="noopener">Code guide</a> · <a href="https://docs.ml5js.org/reference/facemesh" target="_blank" rel="noopener">ml5 FaceMesh</a> · <a href="https://docs.ml5js.org/reference/neural-network" target="_blank" rel="noopener">ml5 NeuralNetwork</a></p></footer>
+  </main>
+  <noscript>This example needs JavaScript. No camera is started without your action.</noscript>
+</body>
+</html>
