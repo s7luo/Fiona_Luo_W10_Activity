@@ -24,7 +24,7 @@ window.WorkshopConfig = {
 
   // The response gate smooths model scores and requires a sustained threshold
   // crossing; these are interaction rules, not calibrated emotion values.
-  gate: { enter: 0.7, exit: 0.45, holdMs: 300, smoothing: 0.25 },
+  gate: { enter: 0.7, exit: 0.45, holdMs: 700, smoothing: 0.25 },
 
   // Old camera results are rejected, and very small faces are not measured.
   tracking: { staleMs: 650, minimumFaceWidth: 110 },
